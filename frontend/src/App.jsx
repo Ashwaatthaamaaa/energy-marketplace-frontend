@@ -173,11 +173,11 @@ function App() {
 
   // Connect to MetaMask
   const connectWallet = async () => {
-try {
-    if (window.ethereum) {
-      const provider = new ethers.BrowserProvider(window.ethereum);
-// Request account access
-        const accounts =       await window.ethereum.request({
+    try {
+      if (window.ethereum) {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        // Request account access
+        const accounts = await window.ethereum.request({
           method: "eth_requestAccounts"
         });
         
@@ -197,10 +197,10 @@ try {
         }
 
         const signer = await provider.getSigner();
-      const userAddress = await signer.getAddress();
-      setAccount(userAddress);
-      const contractInstance = new ethers.Contract(contractAddress, abi, signer);
-      setContract(contractInstance);
+        const userAddress = await signer.getAddress();
+        setAccount(userAddress);
+        const contractInstance = new ethers.Contract(contractAddress, abi, signer);
+        setContract(contractInstance);
 
         // Setup listeners for account and network changes
         window.ethereum.on('accountsChanged', (accounts) => {
@@ -216,27 +216,41 @@ try {
           window.location.reload();
         });
 
-    } else {
-      alert("Please install MetaMask!");
-}
+      } else {
+        alert("Please install MetaMask!");
+      }
     } catch (error) {
       console.error("Error connecting wallet:", error);
       alert("Error connecting to wallet. Please try again.");
     }
   };
 
-  // Check for Sepolia network
+  // Check for existing connection
   useEffect(() => {
-    if (window.ethereum && window.ethereum.networkVersion !== "11155111") {
-      alert("Please switch to the Sepolia testnet in MetaMask!");
-    }
+    const checkConnection = async () => {
+      if (window.ethereum) {
+        const provider = new ethers.BrowserProvider(window.ethereum);
+        try {
+          const accounts = await window.ethereum.request({
+            method: "eth_accounts"
+          });
+          if (accounts.length > 0) {
+            connectWallet();
+          }
+        } catch (error) {
+          console.error("Error checking connection:", error);
+        }
+      }
+    };
+    
+    checkConnection();
   }, []);
 
   // List energy
   const listEnergy = async () => {
     const amount = prompt("Enter energy amount (kWh):");
     const price = prompt("Enter price (ETH):");
-    const priceWei = ethers.utils.parseEther(price);
+    const priceWei = ethers.parseEther(price);
     await contract.listEnergy(amount, priceWei);
     fetchListings();
   };
@@ -244,25 +258,69 @@ try {
   // Fetch available listings
   const fetchListings = async () => {
     if (!contract) return;
-    const totalListings = await contract.nextListingId();
-    const allListings = [];
-    for (let i = 0; i < totalListings; i++) {
-      const listing = await contract.listings(i);
-      if (!listing.sold) {
-        allListings.push({
-          id: listing.id.toNumber(),
-          producer: listing.producer,
-          amount: listing.amount.toNumber(),
-          price: ethers.utils.formatEther(listing.price),
-        });
+    try {
+      const totalListings = await contract.nextListingId();
+      const allListings = [];
+      for (let i = 0; i < totalListings; i++) {
+        const listing = await contract.listings(i);
+        if (!listing.sold) {
+          allListings.push({
+            id: Number(listing.id),
+            producer: listing.producer,
+            amount: Number(listing.amount),
+            price: ethers.formatEther(listing.price),
+          });
+        }
       }
+      setListings(allListings);
+    } catch (error) {
+      console.error("Error fetching listings:", error);
     }
-    setListings(allListings);
   };
+
+  // Set up periodic fetching of listings and cleanup
+  useEffect(() => {
+    if (contract) {
+      // Initial fetch
+      fetchListings();
+      
+      // Set up interval for periodic updates
+      const intervalId = setInterval(fetchListings, 10000); // Fetch every 10 seconds
+      
+      // Listen for contract events
+      const handleEnergyListed = (id, producer, amount, price) => {
+        fetchListings(); // Refresh listings when new energy is listed
+      };
+      
+      const handleEnergySold = (id, consumer) => {
+        fetchListings(); // Refresh listings when energy is sold
+      };
+      
+      contract.on("EnergyListed", handleEnergyListed);
+      contract.on("EnergySold", handleEnergySold);
+      
+      // Cleanup function
+      return () => {
+        clearInterval(intervalId);
+        contract.off("EnergyListed", handleEnergyListed);
+        contract.off("EnergySold", handleEnergySold);
+      };
+    }
+  }, [contract]);
+
+  // Update UI when listings change
+  useEffect(() => {
+    const updateUI = async () => {
+      if (contract && account) {
+        await fetchBalance();
+      }
+    };
+    updateUI();
+  }, [listings, contract, account]);
 
   // Buy energy
   const buyEnergy = async (listingId, price) => {
-    await contract.buyEnergy(listingId, { value: ethers.utils.parseEther(price) });
+    await contract.buyEnergy(listingId, { value: ethers.parseEther(price) });
     fetchListings();
   };
 
@@ -270,7 +328,7 @@ try {
   const fetchBalance = async () => {
     if (contract && account) {
       const bal = await contract.balances(account);
-      setBalance(ethers.utils.formatEther(bal));
+      setBalance(ethers.formatEther(bal));
     }
   };
 
@@ -280,28 +338,31 @@ try {
     fetchBalance();
   };
 
-  // Update listings and balance when contract is set
-  useEffect(() => {
-    if (contract) {
-      fetchListings();
-      fetchBalance();
-    }
-  }, [contract]);
-
   return (
     <div style={{ padding: "20px" }}>
       <button onClick={connectWallet}>Connect Wallet</button>
       {account && <p>Connected: {account}</p>}
       <button onClick={listEnergy}>List Energy</button>
-      <h2>Available Listings</h2>
-      <ul>
-        {listings.map((listing) => (
-          <li key={listing.id}>
-            {listing.amount} kWh for {listing.price} ETH
-            <button onClick={() => buyEnergy(listing.id, listing.price)}>Buy</button>
-          </li>
-        ))}
-      </ul>
+      <h2>Available Listings ({listings.length})</h2>
+      {listings.length === 0 ? (
+        <p>No energy listings available</p>
+      ) : (
+        <ul>
+          {listings.map((listing) => (
+            <li key={listing.id} style={{ marginBottom: "10px", padding: "10px", border: "1px solid #ccc", borderRadius: "5px" }}>
+              <div>Amount: {listing.amount} kWh</div>
+              <div>Price: {listing.price} ETH</div>
+              <div>Producer: {listing.producer}</div>
+              <button 
+                onClick={() => buyEnergy(listing.id, listing.price)}
+                style={{ marginTop: "5px" }}
+              >
+                Buy
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
       <h2>Your Earnings: {balance} ETH</h2>
       <button onClick={withdraw}>Withdraw</button>
     </div>

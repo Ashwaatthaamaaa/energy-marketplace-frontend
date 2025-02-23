@@ -366,7 +366,7 @@ function App() {
                 padding: "15px", 
                 border: "1px solid #ccc", 
                 borderRadius: "8px",
-                backgroundColor: isProducer ? '#f5f5f5' : 'white' 
+                backgroundColor: isProducer ? '#f5f5f5' : 'black' 
               }}>
                 <div style={{ marginBottom: "5px" }}>Amount: {listing.amount} kWh</div>
                 <div style={{ marginBottom: "5px" }}>Price: {listing.price} ETH</div>

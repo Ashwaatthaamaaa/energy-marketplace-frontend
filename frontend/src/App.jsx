@@ -319,9 +319,19 @@ function App() {
   }, [listings, contract, account]);
 
   // Buy energy
-  const buyEnergy = async (listingId, price) => {
-    await contract.buyEnergy(listingId, { value: ethers.parseEther(price) });
-    fetchListings();
+  const buyEnergy = async (listingId, price, producer) => {
+    try {
+      // Check if buyer is the producer
+      if (producer.toLowerCase() === account.toLowerCase()) {
+        alert("You cannot buy your own energy listing!");
+        return;
+      }
+      await contract.buyEnergy(listingId, { value: ethers.parseEther(price) });
+      fetchListings();
+    } catch (error) {
+      console.error("Error buying energy:", error);
+      alert("Error buying energy: " + error.message);
+    }
   };
 
   // Fetch balance
@@ -347,20 +357,40 @@ function App() {
       {listings.length === 0 ? (
         <p>No energy listings available</p>
       ) : (
-        <ul>
-          {listings.map((listing) => (
-            <li key={listing.id} style={{ marginBottom: "10px", padding: "10px", border: "1px solid #ccc", borderRadius: "5px" }}>
-              <div>Amount: {listing.amount} kWh</div>
-              <div>Price: {listing.price} ETH</div>
-              <div>Producer: {listing.producer}</div>
-              <button 
-                onClick={() => buyEnergy(listing.id, listing.price)}
-                style={{ marginTop: "5px" }}
-              >
-                Buy
-              </button>
-            </li>
-          ))}
+        <ul style={{ listStyle: 'none', padding: 0 }}>
+          {listings.map((listing) => {
+            const isProducer = listing.producer.toLowerCase() === account?.toLowerCase();
+            return (
+              <li key={listing.id} style={{ 
+                marginBottom: "10px", 
+                padding: "15px", 
+                border: "1px solid #ccc", 
+                borderRadius: "8px",
+                backgroundColor: isProducer ? '#f5f5f5' : 'white' 
+              }}>
+                <div style={{ marginBottom: "5px" }}>Amount: {listing.amount} kWh</div>
+                <div style={{ marginBottom: "5px" }}>Price: {listing.price} ETH</div>
+                <div style={{ marginBottom: "5px" }}>
+                  Producer: {isProducer ? 'You' : `${listing.producer.substring(0, 6)}...${listing.producer.substring(38)}`}
+                </div>
+                <button 
+                  onClick={() => buyEnergy(listing.id, listing.price, listing.producer)}
+                  disabled={isProducer}
+                  style={{ 
+                    marginTop: "5px",
+                    padding: "8px 16px",
+                    backgroundColor: isProducer ? '#cccccc' : '#4CAF50',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: isProducer ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {isProducer ? 'Your Listing' : 'Buy'}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
       <h2>Your Earnings: {balance} ETH</h2>

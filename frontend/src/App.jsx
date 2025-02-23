@@ -8,7 +8,7 @@ function App() {
   const [listings, setListings] = useState([]);
   const [balance, setBalance] = useState("0");
 
-  const contractAddress = "0x56173A993A995a9638e9D2E3783137575A651546"; // Replace with your deployed address
+  const contractAddress = "0xe37Ca6ad22662483Df7739C8240CD2AE3300cf2C"; // Replace with your deployed address
   const abi = [
     {
       "anonymous": false,

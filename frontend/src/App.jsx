@@ -244,7 +244,12 @@ function App() {
             method: "eth_accounts"
           });
           if (accounts.length > 0) {
-            connectWallet();
+            // If there's an existing connection, connect wallet and fetch listings
+            await connectWallet();
+          } else {
+            // Even if not connected, create a read-only contract to fetch listings
+            const readOnlyContract = new ethers.Contract(contractAddress, abi, provider);
+            setContract(readOnlyContract);
           }
         } catch (error) {
           console.error("Error checking connection:", error);
@@ -276,6 +281,7 @@ function App() {
   const fetchListings = async () => {
     if (!contract) return;
     try {
+      console.log("Fetching listings...");
       const totalListings = await contract.nextListingId();
       const allListings = [];
       for (let i = 0; i < totalListings; i++) {
@@ -289,13 +295,14 @@ function App() {
           });
         }
       }
+      console.log("Found listings:", allListings.length);
       setListings(allListings);
     } catch (error) {
       console.error("Error fetching listings:", error);
     }
   };
 
-  // Set up periodic fetching of listings and cleanup
+  // Set up initial fetch and periodic updates
   useEffect(() => {
     if (contract) {
       // Initial fetch
@@ -306,11 +313,13 @@ function App() {
       
       // Listen for contract events
       const handleEnergyListed = (id, producer, amount, price) => {
-        fetchListings(); // Refresh listings when new energy is listed
+        console.log("New energy listed, refreshing...");
+        fetchListings();
       };
       
       const handleEnergySold = (id, consumer) => {
-        fetchListings(); // Refresh listings when energy is sold
+        console.log("Energy sold, refreshing...");
+        fetchListings();
       };
       
       contract.on("EnergyListed", handleEnergyListed);
@@ -319,8 +328,10 @@ function App() {
       // Cleanup function
       return () => {
         clearInterval(intervalId);
-        contract.off("EnergyListed", handleEnergyListed);
-        contract.off("EnergySold", handleEnergySold);
+        if (contract.off) { // Check if contract has event listeners before removing
+          contract.off("EnergyListed", handleEnergyListed);
+          contract.off("EnergySold", handleEnergySold);
+        }
       };
     }
   }, [contract]);

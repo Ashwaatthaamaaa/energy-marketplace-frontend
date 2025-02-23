@@ -26,6 +26,7 @@ contract EnergyMarketplace {
     function buyEnergy(uint listingId) public payable {
         Listing storage listing = listings[listingId];
         require(!listing.sold, "Listing already sold");
+        require(msg.sender != listing.producer, "Cannot buy your own listing");
         require(msg.value == listing.price, "Incorrect payment");
 
         listing.sold = true;

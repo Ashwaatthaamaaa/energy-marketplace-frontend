@@ -393,8 +393,24 @@ function App() {
           })}
         </ul>
       )}
-      <h2>Your Earnings: {balance} ETH</h2>
-      <button onClick={withdraw}>Withdraw</button>
+      <div style={{ marginTop: "20px" }}>
+        <h2>Your Earnings: {balance} ETH</h2>
+        <button 
+          onClick={withdraw}
+          disabled={Number(balance) === 0}
+          style={{ 
+            padding: "8px 16px",
+            backgroundColor: Number(balance) === 0 ? '#cccccc' : '#4CAF50',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: Number(balance) === 0 ? 'not-allowed' : 'pointer'
+          }}
+          title={Number(balance) === 0 ? 'No earnings to withdraw' : 'Click to withdraw your earnings'}
+        >
+          {Number(balance) === 0 ? 'No Earnings to Withdraw' : 'Withdraw'}
+        </button>
+      </div>
     </div>
   );
 }

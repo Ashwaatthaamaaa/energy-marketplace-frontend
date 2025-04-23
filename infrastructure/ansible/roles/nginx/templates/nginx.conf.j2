@@ -1,0 +1,20 @@
+# roles/nginx/templates/nginx.conf.j2
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+
+    # <<< Adjust root path if needed >>>
+    root /var/www/html/marketplace/frontend/dist;
+    index index.html index.htm;
+
+    server_name _; # Listen for any server name
+
+    location / {
+        # Try to serve file directly, then directory, then fall back to index.html for SPA routing
+        try_files $uri $uri/ /index.html;
+    }
+
+    location ~ /\.(?!well-known) {
+            deny all;
+    }
+}

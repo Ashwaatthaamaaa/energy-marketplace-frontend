@@ -1,0 +1,57 @@
+---
+# tasks file for deploying the frontend app
+
+- name: Ensure target directory exists
+  ansible.builtin.file:
+    path: /var/www/html/marketplace # Base directory for the clone
+    state: directory
+    owner: "{{ ansible_user }}" # User running ansible (e.g., sk5633)
+    group: "{{ ansible_user }}"
+    mode: '0755'
+
+- name: Clone or update the repository
+  ansible.builtin.git:
+    # <<< Replace with your actual repo URL if different or private >>>
+    repo: https://github.com/Ashwaatthaamaaa/energy-marketplace-frontend.git
+    dest: /var/www/html/marketplace
+    version: main # Or specify a branch/tag
+    force: yes # Overwrite local changes if any
+
+- name: Install frontend dependencies
+  community.general.npm: # Or use ansible.builtin.command: npm install
+    path: /var/www/html/marketplace/frontend # Run in the frontend subdirectory
+    ci: yes # Uses package-lock.json, faster and more reliable
+
+- name: Build the frontend application
+  ansible.builtin.command:
+    cmd: npm run build # The actual command to run
+    chdir: /var/www/html/marketplace/frontend # IMPORTANT: Run it in the correct directory
+  changed_when: true # Assume build always changes something for simplicity
+
+
+
+# Add this task at the end of roles/frontend-app/tasks/main.yml
+
+- name: Ensure Nginx can read deployed files
+  ansible.builtin.file:
+    path: /var/www/html/marketplace # Apply to base directory and its contents
+    state: directory
+    recurse: yes # Apply permissions recursively to files and subdirs
+    group: www-data # Nginx group on Ubuntu/Debian
+    mode: 'g+rx' # Ensure group has read and execute permissions
+  become: yes # Need sudo to change group/permissions potentially
+
+# Nginx is already configured by its role to point to the dist directory
+# We just need to ensure Nginx can read the files.
+# File permissions might need adjustment depending on user setup.
+# Example: ensure Nginx user (e.g., www-data) can read files
+# - name: Ensure correct permissions for Nginx
+#   ansible.builtin.file:
+#     path: /var/www/html/marketplace/frontend/dist
+#     state: directory
+#     recurse: yes
+#     owner: "{{ ansible_user }}"
+#     group: www-data # Or the group Nginx runs as
+#     mode: '0755' # Adjust permissions as needed
+
+# Nginx restart is usually handled by the nginx role notifications

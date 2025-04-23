@@ -1,0 +1,14 @@
+# roles/prometheus/templates/prometheus.yml.j2
+global:
+  scrape_interval: 15s # Default scrape interval
+
+scrape_configs:
+  - job_name: 'prometheus'
+    # Metrics endpoint for Prometheus itself
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'node_exporter'
+    # Metrics endpoint for Node Exporter on the same machine
+    static_configs:
+      - targets: ['localhost:9100']

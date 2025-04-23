@@ -1,0 +1,23 @@
+---
+# tasks file for common role
+
+- name: Update apt package cache
+  ansible.builtin.apt:
+    update_cache: yes
+    cache_valid_time: 3600 # Update cache if older than 1 hour
+  # 'become: yes' is needed because package management requires root
+  # It's inherited from the playbook if set there, or can be set per task
+
+- name: Upgrade all apt packages to the latest version
+  ansible.builtin.apt:
+    upgrade: dist # Performs equivalent of 'apt-get dist-upgrade'
+
+- name: Install common packages
+  ansible.builtin.apt:
+    name:
+      - git
+      - vim
+      - curl
+      - wget
+      - unzip
+    state: present # Ensure these packages are installed

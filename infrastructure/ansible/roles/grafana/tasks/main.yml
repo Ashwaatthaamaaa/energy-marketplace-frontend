@@ -1,0 +1,33 @@
+---
+# tasks file for grafana
+
+- name: Install prerequisites for Grafana repository
+  ansible.builtin.apt:
+    name:
+      - apt-transport-https
+      - software-properties-common
+      - wget
+    state: present
+
+- name: Add Grafana GPG key
+  ansible.builtin.apt_key:
+    url: https://apt.grafana.com/gpg.key
+    state: present
+
+- name: Add Grafana repository
+  ansible.builtin.apt_repository:
+    repo: deb https://apt.grafana.com stable main
+    state: present
+    filename: grafana
+
+- name: Install Grafana
+  ansible.builtin.apt:
+    name: grafana
+    state: present
+    update_cache: yes
+
+- name: Ensure Grafana service is running and enabled
+  ansible.builtin.systemd:
+    name: grafana-server
+    state: started
+    enabled: yes

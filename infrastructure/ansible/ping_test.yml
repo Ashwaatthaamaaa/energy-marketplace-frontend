@@ -1,0 +1,8 @@
+---
+- name: Test connectivity to marketplace server
+  hosts: marketplace # Target the group defined in inventory.ini
+  gather_facts: no # We don't need system facts for just a ping
+
+  tasks:
+    - name: Ping the server
+      ansible.builtin.ping:

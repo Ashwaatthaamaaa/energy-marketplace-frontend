@@ -1,0 +1,27 @@
+---
+# tasks file for nodejs installation
+
+- name: Check if Node.js 18.x is already installed
+  ansible.builtin.command: node --version
+  register: node_version_check
+  changed_when: false
+  ignore_errors: yes
+
+- name: Download NodeSource setup script for Node.js 18.x
+  ansible.builtin.get_url:
+    url: https://deb.nodesource.com/setup_18.x
+    dest: /tmp/nodesource_setup.sh
+    mode: '0755'
+  when: node_version_check.rc is defined and node_version_check.rc != 0 # Run only if node command failed
+
+- name: Execute NodeSource setup script
+  ansible.builtin.command: /tmp/nodesource_setup.sh
+  when: node_version_check.rc is defined and node_version_check.rc != 0
+  changed_when: true # Assume script always makes changes if run
+
+- name: Install Node.js and npm
+  ansible.builtin.apt:
+    name: nodejs
+    state: present
+    update_cache: yes
+  when: node_version_check.rc is defined and node_version_check.rc != 0

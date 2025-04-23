@@ -1,0 +1,81 @@
+---
+# tasks file for prometheus
+
+- name: Define Prometheus version
+  ansible.builtin.set_fact:
+    prometheus_version: "2.51.1" # Use a recent version
+
+- name: Create Prometheus user
+  ansible.builtin.user:
+    name: prometheus
+    append: true
+    shell: /bin/false
+    system: true
+    create_home: false
+
+- name: Create Prometheus directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: prometheus
+    group: prometheus
+    mode: '0755'
+  loop:
+    - /etc/prometheus
+    - /var/lib/prometheus
+
+- name: Download and unpack Prometheus
+  ansible.builtin.unarchive:
+    src: "https://github.com/prometheus/prometheus/releases/download/v{{ prometheus_version }}/prometheus-{{ prometheus_version }}.linux-amd64.tar.gz"
+    dest: /tmp/
+    remote_src: yes
+    creates: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/prometheus"
+
+- name: Copy Prometheus binaries
+  ansible.builtin.copy:
+    src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}"
+    dest: "/usr/local/bin/"
+    remote_src: yes
+    owner: root
+    group: root
+    mode: '0755'
+  loop:
+    - prometheus
+    - promtool
+  notify: Restart prometheus
+
+- name: Copy Prometheus console files
+  ansible.builtin.copy:
+    src: "/tmp/prometheus-{{ prometheus_version }}.linux-amd64/{{ item }}/" # Note trailing slash
+    dest: "/etc/prometheus/{{ item }}/"
+    remote_src: yes
+    owner: prometheus
+    group: prometheus
+  loop:
+    - consoles
+    - console_libraries
+
+- name: Create Prometheus configuration file from template
+  ansible.builtin.template:
+    src: prometheus.yml.j2
+    dest: /etc/prometheus/prometheus.yml
+    owner: prometheus
+    group: prometheus
+    mode: '0644'
+  notify: Restart prometheus
+
+- name: Create Prometheus systemd unit file
+  ansible.builtin.template:
+    src: prometheus.service.j2
+    dest: /etc/systemd/system/prometheus.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart prometheus
+
+- name: Enable and start Prometheus service
+  ansible.builtin.systemd:
+    name: prometheus
+    state: started
+    enabled: yes
+    daemon_reload: yes

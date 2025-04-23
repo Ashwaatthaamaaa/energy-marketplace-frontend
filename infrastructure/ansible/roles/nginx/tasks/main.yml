@@ -1,0 +1,36 @@
+---
+# tasks file for nginx
+
+- name: Install Nginx
+  ansible.builtin.apt:
+    name: nginx
+    state: present
+    update_cache: yes
+
+- name: Create Nginx config template for the marketplace app
+  ansible.builtin.template:
+    src: nginx.conf.j2 # Template file in templates/ directory
+    dest: /etc/nginx/sites-available/marketplace # Destination on server
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart Nginx # Handler name (defined below or in a handlers file)
+
+- name: Enable the site by creating a symlink
+  ansible.builtin.file:
+    src: /etc/nginx/sites-available/marketplace
+    dest: /etc/nginx/sites-enabled/marketplace
+    state: link
+  notify: Restart Nginx
+
+- name: Remove default Nginx site if it exists
+  ansible.builtin.file:
+    path: /etc/nginx/sites-enabled/default
+    state: absent
+  notify: Restart Nginx
+
+- name: Ensure Nginx service is running and enabled on boot
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: yes

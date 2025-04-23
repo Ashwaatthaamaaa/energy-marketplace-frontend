@@ -1,0 +1,9 @@
+---
+- name: Install and configure Monitoring Stack
+  hosts: marketplace # Target the group from inventory.ini
+  become: yes      # Most tasks require sudo
+
+  roles:
+    - node_exporter
+    - prometheus
+    - grafana

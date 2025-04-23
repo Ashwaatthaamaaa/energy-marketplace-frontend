@@ -1,0 +1,47 @@
+---
+# tasks file for node_exporter
+
+- name: Define node_exporter version
+  ansible.builtin.set_fact:
+    node_exporter_version: "1.7.0" # Use a recent version
+
+- name: Create the node_exporter user
+  ansible.builtin.user:
+    name: node_exporter
+    append: true
+    shell: /bin/false
+    system: true
+    create_home: false
+
+- name: Download and unpack node_exporter
+  ansible.builtin.unarchive:
+    src: "https://github.com/prometheus/node_exporter/releases/download/v{{ node_exporter_version }}/node_exporter-{{ node_exporter_version }}.linux-amd64.tar.gz"
+    dest: /tmp/
+    remote_src: yes
+    creates: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter" # Avoid re-downloading if dir exists
+
+- name: Move node_exporter binary to /usr/local/bin
+  ansible.builtin.copy:
+    src: "/tmp/node_exporter-{{ node_exporter_version }}.linux-amd64/node_exporter"
+    dest: /usr/local/bin/node_exporter
+    remote_src: yes
+    owner: root
+    group: root
+    mode: '0755'
+  notify: Restart node_exporter # Use handlers for restarts
+
+- name: Create systemd unit file for node_exporter
+  ansible.builtin.template:
+    src: node_exporter.service.j2
+    dest: /etc/systemd/system/node_exporter.service
+    owner: root
+    group: root
+    mode: '0644'
+  notify: Restart node_exporter
+
+- name: Enable and start node_exporter service
+  ansible.builtin.systemd:
+    name: node_exporter
+    state: started
+    enabled: yes
+    daemon_reload: yes # Reload systemd if unit file changed

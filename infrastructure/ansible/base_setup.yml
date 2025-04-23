@@ -1,0 +1,7 @@
+---
+- name: Apply common configuration to marketplace server
+  hosts: marketplace # Target the group from inventory.ini
+  become: yes      # Run tasks with sudo (needed for apt)
+
+  roles:
+    - common # Apply the 'common' role we just created

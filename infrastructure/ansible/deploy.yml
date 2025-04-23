@@ -1,0 +1,10 @@
+---
+- name: Configure server and deploy Energy Marketplace Frontend
+  hosts: marketplace
+  become: yes # Most roles require sudo
+
+  roles:
+    - common      # Basic setup (run first)
+    - nodejs      # Install Node.js for build
+    - nginx       # Install and configure Nginx
+    - frontend-app # Clone, build, deploy frontend

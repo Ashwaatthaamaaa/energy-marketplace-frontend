@@ -147,9 +147,11 @@ jobs:
         
     - name: Prepare environment variables for Ansible
       run: |
-        echo "DOCKER_IMAGE=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${GITHUB_SHA::8}" > .env
+        # Create a YAML file for Ansible extra vars
+        echo "docker_image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${GITHUB_SHA::8}" > ansible_vars.yml
+        cat ansible_vars.yml
         
     - name: Run Ansible playbook
       run: |
         cd infrastructure/ansible
-        ansible-playbook -i ../../inventory.ini deploy.yml --extra-vars "@../../.env" 
+        ansible-playbook -i ../../inventory.ini deploy.yml --extra-vars "@../../ansible_vars.yml" 

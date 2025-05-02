@@ -56,11 +56,14 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v1
+        with:
+          credentials_json: ${{ secrets.GCP_CREDENTIALS }}
+          project_id: ${{ secrets.GCP_PROJECT_ID }}
+
       - name: Setup gcloud
         uses: google-github-actions/setup-gcloud@v1
-        with:
-          project_id: ${{ secrets.GCP_PROJECT_ID }}
-          service_account_key: ${{ secrets.GCP_CREDENTIALS }}
 
       - name: Check if VM exists
         id: check-vm
@@ -77,6 +80,12 @@ jobs:
             echo "server_ip=$IP" >> $GITHUB_OUTPUT
           fi
 
+      - name: Setup Terraform
+        if: steps.check-vm.outputs.exists == 'false'
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.0.0
+
       - name: Terraform Provision (if needed)
         if: steps.check-vm.outputs.exists == 'false'
         run: |
@@ -90,6 +99,12 @@ jobs:
         id: set-ip
         run: |
           if [ -z "${{ steps.check-vm.outputs.server_ip }}" ]; then
+            # Ensure we have Terraform available
+            if ! command -v terraform &> /dev/null; then
+              # Use hashicorp/setup-terraform action directly
+              echo "Terraform not found, please ensure the previous Terraform setup step was successful"
+              exit 1
+            fi
             IP=$(terraform -chdir=infrastructure/terraform output -raw server_ip)
             echo "server_ip=$IP" >> $GITHUB_OUTPUT
           else

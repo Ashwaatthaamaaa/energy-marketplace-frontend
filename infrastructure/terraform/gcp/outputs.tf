@@ -1,15 +1,26 @@
 # infrastructure/terraform/gcp/outputs.tf
 
-output "marketplace_vm_external_ip" {
-  description = "External IP address of the marketplace VM"
-  # Accesses the first network interface [0] and its first access config [0]
-  # to get the assigned public IP (nat_ip).
-  # This will show the ephemeral IP assigned by GCP.
-  value = google_compute_instance.marketplace_vm.network_interface[0].access_config[0].nat_ip
+output "gke_cluster_name" {
+  description = "Name of the GKE Autopilot cluster"
+  value       = google_container_cluster.marketplace_cluster.name
 }
 
-output "marketplace_vm_internal_ip" {
-  description = "Internal IP address of the marketplace VM"
-  # Accesses the first network interface [0] to get the private IP.
-  value = google_compute_instance.marketplace_vm.network_interface[0].network_ip
+output "gke_cluster_endpoint" {
+  description = "Endpoint of the GKE Autopilot cluster"
+  value       = google_container_cluster.marketplace_cluster.endpoint
+}
+
+output "gke_cluster_location" {
+  description = "Location of the GKE Autopilot cluster"
+  value       = google_container_cluster.marketplace_cluster.location
+}
+
+output "gke_master_version" {
+  description = "Kubernetes version of the GKE Autopilot cluster"
+  value       = google_container_cluster.marketplace_cluster.master_version
+}
+
+output "gke_connect_command" {
+  description = "Command to connect to the GKE cluster"
+  value       = "gcloud container clusters get-credentials ${google_container_cluster.marketplace_cluster.name} --region ${google_container_cluster.marketplace_cluster.location} --project ${var.gcp_project_id}"
 }

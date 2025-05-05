@@ -16,6 +16,7 @@ provider "google" {
 
 # --- Firewall Rules for Default Network ---
 
+# Keeping this rule for administrative access
 resource "google_compute_firewall" "default_allow_ssh" {
   name      = "default-allow-ssh"
   network   = "default" # Use the default GCP network
@@ -28,6 +29,7 @@ resource "google_compute_firewall" "default_allow_ssh" {
   source_ranges = [var.my_public_ip] # <<< USES YOUR IP VARIABLE >>>
 }
 
+# Keeping this rule for HTTP/HTTPS access to GKE services
 resource "google_compute_firewall" "default_allow_http_https" {
   name      = "default-allow-http-https"
   network   = "default"
@@ -37,8 +39,7 @@ resource "google_compute_firewall" "default_allow_http_https" {
     ports    = ["80", "443"]
   }
   source_ranges = ["0.0.0.0/0"] # Allow public web access
-  # Apply to VMs with http-server OR https-server tag (matches your JSON)
-  target_tags = ["http-server", "https-server"]
+  target_tags = ["http-server", "https-server", "gke-node"]
 }
 
 resource "google_compute_firewall" "default_allow_monitoring" {
@@ -56,50 +57,31 @@ resource "google_compute_firewall" "default_allow_monitoring" {
   target_tags = ["monitoring-ports"]
 }
 
-# --- Single Compute Instance ---
+# --- GKE Autopilot Cluster ---
 
-resource "google_compute_instance" "marketplace_vm" {
-  name = "marketplace-server-01" # Feel free to change the VM name
-  # Machine type from your JSON example, made configurable via variable
-  machine_type = var.vm_machine_type # e.g., "e2-micro"
-  zone = var.gcp_zone
+resource "google_container_cluster" "marketplace_cluster" {
+  name     = "marketplace-cluster"
+  location = var.gcp_region
 
-  # Combine tags from your JSON and needed for monitoring firewall rule
-  tags = ["http-server", "https-server", "monitoring-ports"]
+  # Enable Autopilot mode
+  enable_autopilot = true
 
-  boot_disk {
-    initialize_params {
-      # Image matching your JSON example
-      image = "ubuntu-os-cloud/ubuntu-2004-lts"
-    }
+  # Network configuration (using default network)
+  network    = "default"
+  subnetwork = "default"
+
+  # IP allocation policy required for Autopilot clusters
+  ip_allocation_policy {
+    # Will automatically create secondary ranges
   }
 
-  network_interface {
-    # Use the default network
-    network = "default"
-    access_config {
-      // Empty block assigns an ephemeral public IP
-    }
+  # Release channel for the cluster (REGULAR is recommended for production)
+  release_channel {
+    channel = "REGULAR"
   }
 
-  # Configures SSH access
-  metadata = {
-    # <<< ENSURE var.ssh_user and var.ssh_pub_key_path in variables.tf (or .tfvars) ARE CORRECT >>>
-    ssh-keys = "${var.ssh_user}:${file(var.ssh_pub_key_path)}"
+  # Enable workload identity for better security
+  workload_identity_config {
+    workload_pool = "${var.gcp_project_id}.svc.id.goog"
   }
-
-  # Shielded VM config based on your JSON example
-  shielded_instance_config {
-    enable_secure_boot          = false
-    enable_vtpm                 = true
-    enable_integrity_monitoring = true
-  }
-
-  # Scheduling options based on your JSON example
-  scheduling {
-    on_host_maintenance = "MIGRATE"
-    automatic_restart   = true
-  }
-
-  allow_stopping_for_update = true
 }

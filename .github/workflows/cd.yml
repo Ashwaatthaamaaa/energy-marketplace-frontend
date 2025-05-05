@@ -8,7 +8,6 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build-and-push:
@@ -27,6 +26,10 @@ jobs:
         registry: ${{ env.REGISTRY }}
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Set image name
+      run: |
+        echo "IMAGE_NAME=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
     
     - name: Build and push Docker image
       uses: docker/build-push-action@v4
@@ -117,8 +120,14 @@ jobs:
           --region ${{ needs.check-or-provision-infra.outputs.cluster_location }} \
           --project ${{ secrets.GCP_PROJECT_ID }}
     
+    - name: Set image name
+      run: |
+        echo "IMAGE_NAME=$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+    
     - name: Deploy to Kubernetes
       run: |
+        # Update the deployment image to use lowercase
+        sed -i "s|ghcr.io/ashwaatthaamaaa/energy-marketplace-frontend|ghcr.io/${{ env.IMAGE_NAME }}|" kubernetes/deployment.yaml
         kubectl apply -f kubernetes/deployment.yaml
         kubectl apply -f kubernetes/service.yaml
         

@@ -2,7 +2,7 @@ name: Continuous Deployment
 
 on:
   push:
-    branches: [ main ]
+    branches: [ gke ]
     tags: [ 'v*' ]
   workflow_dispatch:
 
@@ -28,24 +28,12 @@ jobs:
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
     
-    - name: Extract metadata for Docker
-      id: meta
-      uses: docker/metadata-action@v4
-      with:
-        images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-        tags: |
-          type=semver,pattern={{version}}
-          type=semver,pattern={{major}}.{{minor}}
-          type=ref,event=branch
-          type=sha,format=long
-    
     - name: Build and push Docker image
       uses: docker/build-push-action@v4
       with:
         context: .
         push: true
-        tags: ${{ steps.meta.outputs.tags }}
-        labels: ${{ steps.meta.outputs.labels }}
+        tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
         
   check-or-provision-infra:
     needs: build-and-push
@@ -129,22 +117,14 @@ jobs:
           --region ${{ needs.check-or-provision-infra.outputs.cluster_location }} \
           --project ${{ secrets.GCP_PROJECT_ID }}
     
-    - name: Update Kubernetes manifests with image tag
-      run: |
-        # Extract the specific image tag pushed in the build-and-push job
-        IMAGE_TAG=$(echo '${{ needs.build-and-push.outputs.tags }}' | grep -o "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-[a-f0-9]*" | head -1)
-        if [ -z "$IMAGE_TAG" ]; then
-          # Fallback to using SHA as the tag if metadata-action output is not as expected
-          IMAGE_TAG="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:sha-${GITHUB_SHA::8}"
-        fi
-        
-        # Update the deployment.yaml file with the specific image
-        sed -i "s|ghcr.io/ashwaatthaamaaa/energy-marketplace-frontend:latest|$IMAGE_TAG|g" kubernetes/deployment.yaml
-    
     - name: Deploy to Kubernetes
       run: |
         kubectl apply -f kubernetes/deployment.yaml
         kubectl apply -f kubernetes/service.yaml
+        
+    - name: Force rolling restart
+      run: |
+        kubectl rollout restart deployment/energy-marketplace-frontend
     
     - name: Wait for deployment rollout
       run: |

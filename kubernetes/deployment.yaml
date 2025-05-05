@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: energy-marketplace-frontend
+  labels:
+    app: energy-marketplace-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: energy-marketplace-frontend
+  template:
+    metadata:
+      labels:
+        app: energy-marketplace-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: ghcr.io/ashwaatthaamaaa/energy-marketplace-frontend:latest
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "128Mi"
+          limits:
+            cpu: "500m"
+            memory: "256Mi"
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 15
+          periodSeconds: 20 
